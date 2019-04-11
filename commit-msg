@@ -1,0 +1,145 @@
+#!/usr/bin/env node
+
+const fs = require('fs');
+const childProcessExec = require('child_process').exec;
+const util = require('util');
+// 分支名称
+const BRANCH_CONTRACT = /^(feature|hotfix|chore|docs|refactor)-\w+/;
+// COMMIT MESSAGE 长度限制
+const COMMIT_MESSAGE_LIMIT_LENGTH = 20;
+// COMMIT MESSAGE 检查
+const CODE_CONTRACT = /^(feat|fix|docs|chore|refactor)\(\w+\)?:\s(\S|\w)+/;
+
+const TIMEOUT_THRESHOLD = 3000;
+
+
+const COLORS = {
+  Reset: '\x1b[0m',
+  Bright: '\x1b[1m',
+  Dim: '\x1b[2m',
+  Underscore: '\x1b[4m',
+  Blink: '\x1b[5m',
+  Reverse: '\x1b[7m',
+  Hidden: '\x1b[8m',
+  FgBlack: '\x1b[30m',
+  FgRed: '\x1b[31m',
+  FgGreen: '\x1b[32m',
+  FgYellow: '\x1b[33m',
+  FgBlue: '\x1b[34m',
+  FgMagenta: '\x1b[35m',
+  FgCyan: '\x1b[36m',
+  FgWhite: '\x1b[37m',
+  BgBlack: '\x1b[40m',
+  BgRed: '\x1b[41m',
+  BgGreen: '\x1b[42m',
+  BgYellow: '\x1b[43m',
+  BgBlue: '\x1b[44m',
+  BgMagenta: '\x1b[45m',
+  BgCyan: '\x1b[46m',
+  BgWhite: '\x1b[47m',
+};
+
+const ERROR_MESSAGE = {
+  BRANCH_NAME_ERROR: "❌  ERROR: 你的分支名没有按照规范，我有点忍受不了。",
+  BRANCH_NAME_ERROR_TIP: `❤️  INFO: 请按照规范切换分支 ${BRANCH_CONTRACT}`,
+  COMMIT_MESSAGE_TOO_SHORT:
+    '❌  ERROR: 你的 commit message 简直太短了，我有点忍受不了。请尽可能详尽地描述你解决的问题。',
+  COMMIT_MESSAGE_STANDARD_TIP: '包含：功能实现，技术难点，简明业务逻辑等...',
+  COMMIT_MESSAGE_INVALID: '❌  ERROR: 不合法的 commit message, 请遵守 commit message 提交规范。',
+  COMMIT_MESSAGE_LINK: '请仔细阅读规范：https://cf.trustasia.cn/pages/viewpage.action?pageId=54075167',
+  COMMIT_CHECK_SUCCESS: '😁  SUCCESS: 太赞了，commit message 通过了检查',
+};
+
+const exec = util.promisify(childProcessExec);
+
+checkCommitMessage();
+hookCleanup();
+
+async function checkCommitMessage() {
+  const message = fs.readFileSync(process.argv[2], 'utf8').trim();
+  let branchName = '';
+  try {
+    branchName = await getCurrentBranch();
+  } catch (e) {
+    handleGitBranchCommandError(e);
+  }
+
+  if (!BRANCH_CONTRACT.test(branchName)) {
+    handleBadBranchName();
+  }
+
+  if (message.length < COMMIT_MESSAGE_LIMIT_LENGTH) {
+    showCommitMessage(message);
+    console.log(
+      COLORS.FgRed,
+      ERROR_MESSAGE.COMMIT_MESSAGE_TOO_SHORT,
+      COLORS.FgGreen,
+      ERROR_MESSAGE.COMMIT_MESSAGE_STANDARD_TIP
+    );
+    process.exit(1);
+  }
+
+  if (!CODE_CONTRACT.test(message)) {
+    showCommitMessage(message);
+    handleBadCommitMessage();
+  }
+
+  console.log(`\n${COLORS.FgGreen}\n`, ERROR_MESSAGE.COMMIT_CHECK_SUCCESS);
+  process.exit(0);
+}
+
+function showCommitMessage(message) {
+  console.log(
+    COLORS.FgBlue,
+    '\n 你的 commit message 是:',
+    COLORS.FgYellow,
+    `${message} \n`
+  );
+}
+
+function handleBadCommitMessage() {
+  console.log(COLORS.FgRed, ERROR_MESSAGE.COMMIT_MESSAGE_INVALID, COLORS.FgGreen, ERROR_MESSAGE.COMMIT_MESSAGE_LINK);
+  process.exit(1);
+}
+
+async function getCurrentBranch() {
+  const branchesOutput = await exec('git branch');
+  if (branchesOutput.stderr) {
+    throw new Error(stderr);
+  }
+  const branches = branchesOutput.stdout;
+  return branches
+    .split('\n')
+    .find(b => b.trim().charAt(0) === '*')
+    .trim()
+    .substring(2);
+}
+
+function handleGitBranchCommandError(e) {
+  console.log(COLORS.FgRed, ERROR_MESSAGE.BRANCH_NAME_ERROR);
+  console.log(COLORS.FgBlue, ERROR_MESSAGE.BRANCH_NAME_ERROR_TIP);
+  console.log(COLORS.FgRed, e.getMessage());
+  process.exit(1);
+}
+
+function handleBadBranchName() {
+  console.log(`\n${COLORS.FgRed}%s\n`, ERROR_MESSAGE.BRANCH_NAME_ERROR);
+  console.log(`\n${COLORS.FgBlue}%s\n`, ERROR_MESSAGE.BRANCH_NAME_ERROR_TIP);
+  process.exit(1);
+}
+
+
+function hookCleanup() {
+  setTimeout(() => {
+    console.log(
+      'This is a timeout message from your commit-msg git hook. If you see this, something bad happened in your pre-commit hook, and it absolutely did not work as expected.'
+    );
+    console.log(
+      ' Your commit will be rejected. Please read any previous error message related to your commit message, and/or check the commit-msg git hook script.'
+    );
+    console.log(
+      ' You can find more info in this link: https://git-scm.com/book/uz/v2/Customizing-Git-An-Example-Git-Enforced-Policy'
+    );
+    process.exit(1);
+  }, TIMEOUT_THRESHOLD);
+}
