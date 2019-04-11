@@ -46,7 +46,7 @@ const ERROR_MESSAGE = {
     '❌  ERROR: 你的 commit message 简直太短了，我有点忍受不了。请尽可能详尽地描述你解决的问题。',
   COMMIT_MESSAGE_STANDARD_TIP: '包含：功能实现，技术难点，简明业务逻辑等...',
   COMMIT_MESSAGE_INVALID: '❌  ERROR: 不合法的 commit message, 请遵守 commit message 提交规范。',
-  COMMIT_MESSAGE_LINK: '请仔细阅读规范：https://cf.trustasia.cn/pages/viewpage.action?pageId=54075167',
+  COMMIT_MESSAGE_LINK: '请仔细阅读规范：https://www.conventionalcommits.org/en/v1.0.0-beta.3/',
   COMMIT_CHECK_SUCCESS: '😁  SUCCESS: 太赞了，commit message 通过了检查',
 };
 
